@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 )
 
@@ -12,7 +11,7 @@ var ErrNoPromptExtension = fmt.Errorf("file does not have a .prompt extension")
 
 type AddOn string
 
-var (
+const (
 	AddOnJSONOutput AddOn = "The output should be only a valid, raw, minified JSON object with no additional data."
 )
 
@@ -48,55 +47,53 @@ type MinifiedPrompt string
 
 // Remove unnecessary spaces inside JSON-like objects while keeping comments and spaces outside JSON-like objects.
 func FromString(prompt string, addons ...AddOn) MinifiedPrompt {
-	// Regular expression to match JSON-like objects, handling nested structures
-	reJSON := regexp.MustCompile(`(\{[^{}]*\}|\$begin:math:display\$[^$]*\$end:math:display\$)`)
-
-	// Function to minify JSON-like objects
-	minifyJSON := func(json string) string {
-		var result strings.Builder
-		inString := false
-		inComment := false
-
-		for i := 0; i < len(json); i++ {
-			char := json[i]
-
-			if char == '"' {
-				inString = !inString
-			}
-
-			if !inString && char == '/' && i+1 < len(json) && json[i+1] == '/' {
-				inComment = true
-			}
-
-			if inComment && char == '\n' {
-				inComment = false
-				result.WriteByte(char)
-				continue
-			}
-
-			if !inString && !inComment && (char == ' ' || char == '\t' || char == '\n') {
-				continue
-			}
-
-			result.WriteByte(char)
-		}
-		return result.String()
-	}
-
-	// Split prompt into parts: text and JSON-like objects
-	parts := reJSON.Split(prompt, -1)
-	matches := reJSON.FindAllString(prompt, -1)
-
-	// Reconstruct the prompt, minifying JSON-like objects
+	prompt = strings.TrimSpace(prompt)
 	var result strings.Builder
-	for i, part := range parts {
-		result.WriteString(strings.TrimSpace(part))
-		if i < len(matches) {
-			if result.Len() > 0 && !strings.HasSuffix(result.String(), "[") && !strings.HasSuffix(result.String(), "{") {
-				result.WriteByte(' ')
+	bracketCount := 0
+	for i := 0; i < len(prompt); {
+		next := func(write bool) {
+			if write {
+				result.WriteByte(prompt[i])
 			}
-			result.WriteString(minifyJSON(matches[i]))
+			i++
 		}
+
+		// Brackets
+		switch prompt[i] {
+		case '{', '[':
+			bracketCount++
+		case '}', ']':
+			bracketCount--
+		}
+
+		if bracketCount > 0 {
+			// Strings
+			if prompt[i] == '"' {
+				next(true)
+				for prompt[i] != '"' {
+					next(true)
+				}
+				next(true)
+			}
+
+			// Comments
+			if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
+				next(true)
+				next(true)
+				for prompt[i] != '\n' {
+					next(true)
+				}
+				next(true)
+			}
+
+			// Spaces
+			if prompt[i] == ' ' || prompt[i] == '\n' || prompt[i] == '\t' {
+				next(false)
+				continue
+			}
+		}
+		// Other characters
+		next(true)
 	}
 
 	// Add-ons
