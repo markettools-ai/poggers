@@ -12,12 +12,10 @@ import (
 type promptBuilder struct {
 	annotations       map[string]string
 	annotationsMutexn sync.RWMutex
-	onGetAnnotation   func(id string) *string
 }
 
 type PromptBuilderOptions struct {
-	Annotations     map[string]string
-	OnGetAnnotation func(id string) *string // Middleware to be used on get annotations. If nil is returned, the default annotation is used
+	Annotations map[string]string
 }
 
 func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
@@ -27,17 +25,15 @@ func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
 		"JSONOutput":   JSONOutput,
 	}
 	// Override options
-	var onGetAnnotation func(id string) *string
 	if len(options) > 0 {
 		if options[0].Annotations != nil {
 			for k, v := range options[0].Annotations {
 				internalAnnotations[k] = v
 			}
 		}
-		onGetAnnotation = options[0].OnGetAnnotation
 	}
 
-	return &promptBuilder{internalAnnotations, sync.RWMutex{}, onGetAnnotation}
+	return &promptBuilder{internalAnnotations, sync.RWMutex{}}
 }
 
 func readFile(filename string) (string, error) {
@@ -142,12 +138,6 @@ func (pB *promptBuilder) ProcessFromFile(filename string) ([]Message, error) {
 }
 
 func (pB *promptBuilder) getAnnotation(id string) string {
-	if pB.onGetAnnotation != nil {
-		annotation := pB.onGetAnnotation(id)
-		if annotation != nil {
-			return *annotation
-		}
-	}
 	pB.annotationsMutexn.RLock()
 	annotation := pB.annotations[id]
 	pB.annotationsMutexn.RUnlock()
