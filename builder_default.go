@@ -12,21 +12,32 @@ import (
 type promptBuilder struct {
 	annotations       map[string]string
 	annotationsMutexn sync.RWMutex
+	onGetAnnotation   func(id string) *string
 }
 
-func NewPromptBuilder(annotations ...map[string]string) PromptBuilder {
-	internalAnnotations := make(map[string]string)
-	if len(annotations) > 0 {
-		for k, v := range annotations[0] {
-			internalAnnotations[k] = v
+type PromptBuilderOptions struct {
+	Annotations     map[string]string
+	OnGetAnnotation func(id string) *string // Middleware to be used on get annotations. If nil is returned, the default annotation is used
+}
+
+func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
+	// Default annotations
+	internalAnnotations := map[string]string{
+		"OutputSchema": OutputSchema,
+		"JSONOutput":   JSONOutput,
+	}
+	// Override options
+	var onGetAnnotation func(id string) *string
+	if len(options) > 0 {
+		if options[0].Annotations != nil {
+			for k, v := range options[0].Annotations {
+				internalAnnotations[k] = v
+			}
 		}
+		onGetAnnotation = options[0].OnGetAnnotation
 	}
 
-	// Default annotations
-	internalAnnotations["OutputSchema"] = OutputSchema
-	internalAnnotations["JSONOutput"] = JSONOutput
-
-	return &promptBuilder{internalAnnotations, sync.RWMutex{}}
+	return &promptBuilder{internalAnnotations, sync.RWMutex{}, onGetAnnotation}
 }
 
 func readFile(filename string) (string, error) {
@@ -130,6 +141,19 @@ func (pB *promptBuilder) ProcessFromFile(filename string) ([]Message, error) {
 	return messages, nil
 }
 
+func (pB *promptBuilder) getAnnotation(id string) string {
+	if pB.onGetAnnotation != nil {
+		annotation := pB.onGetAnnotation(id)
+		if annotation != nil {
+			return *annotation
+		}
+	}
+	pB.annotationsMutexn.RLock()
+	annotation := pB.annotations[id]
+	pB.annotationsMutexn.RUnlock()
+	return annotation
+}
+
 func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 	prompt = "\n" + prompt + "\n"
 	var result strings.Builder
@@ -216,16 +240,7 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 				prompt[i] == '_' || prompt[i] == '-' {
 				next(false)
 			}
-			id := prompt[start:i]
-			pB.annotationsMutexn.RLock()
-			if value, ok := pB.annotations[id]; ok {
-				pB.annotationsMutexn.RUnlock()
-				// Add space before annotation if needed
-				if result.Len() > 0 && result.String()[result.Len()-1] != ' ' {
-					result.WriteByte(' ')
-				}
-				result.WriteString(value)
-			}
+			result.WriteString(pB.getAnnotation(prompt[start:i]))
 			continue
 		}
 		// Brackets
@@ -262,16 +277,7 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 							prompt[i] == '_' || prompt[i] == '-' {
 							next(false)
 						}
-						id := prompt[start:i]
-						pB.annotationsMutexn.RLock()
-						if value, ok := pB.annotations[id]; ok {
-							pB.annotationsMutexn.RUnlock()
-							// Add space before annotation if needed
-							if result.Len() > 0 && result.String()[result.Len()-1] != ' ' {
-								result.WriteByte(' ')
-							}
-							result.WriteString(value)
-						}
+						result.WriteString(pB.getAnnotation(prompt[start:i]))
 						continue
 					}
 					next(true)
@@ -300,16 +306,7 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 							prompt[i] == '_' || prompt[i] == '-' {
 							next(false)
 						}
-						id := prompt[start:i]
-						pB.annotationsMutexn.RLock()
-						if value, ok := pB.annotations[id]; ok {
-							pB.annotationsMutexn.RUnlock()
-							// Add space before annotation if needed
-							if result.Len() > 0 && result.String()[result.Len()-1] != ' ' {
-								result.WriteByte(' ')
-							}
-							result.WriteString(value)
-						}
+						result.WriteString(pB.getAnnotation(prompt[start:i]))
 						continue
 					}
 					next(true)
