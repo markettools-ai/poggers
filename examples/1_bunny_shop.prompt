@@ -1,0 +1,8 @@
+Generate 5 items sold in a fantasy shop, owned by a Bunny.
+[
+    {
+        "name": string,
+        "type": "sword" | "potion" | "misc",
+        "price": number + " coins" // should range from 5 to 20 coins
+    }
+]
