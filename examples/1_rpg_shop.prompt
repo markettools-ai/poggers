@@ -9,5 +9,5 @@ system:
         }
     ]
     @JSONOutput
-assistant:
+user:
     @PlayerStats
