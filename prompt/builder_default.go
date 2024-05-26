@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 )
 
 type promptBuilder struct {
@@ -19,22 +21,18 @@ func NewPromptBuilder(annotations ...map[string]string) PromptBuilder {
 		}
 	}
 
+	// Default annotations
 	internalAnnotations["OutputSchema"] = OutputSchema
 	internalAnnotations["JSONOutput"] = JSONOutput
 
 	return &promptBuilder{internalAnnotations}
 }
 
-func (pB *promptBuilder) ProcessFromFile(filename string) ([]Message, error) {
-	// Check if the file has a .prompt extension
-	if !strings.HasSuffix(filename, ".prompt") {
-		return []Message{}, fmt.Errorf("file must have a .prompt extension")
-	}
-
+func readFile(filename string) (string, error) {
 	// Open the file
 	file, err := os.Open(filename)
 	if err != nil {
-		return []Message{}, fmt.Errorf("failed to open file: %w", err)
+		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
 
@@ -44,12 +42,91 @@ func (pB *promptBuilder) ProcessFromFile(filename string) ([]Message, error) {
 	for scanner.Scan() {
 		fullText += scanner.Text() + "\n"
 	}
-
 	if err := scanner.Err(); err != nil {
-		return []Message{}, fmt.Errorf("error reading file: %w", err)
+		return "", fmt.Errorf("error reading file: %w", err)
 	}
 
-	return pB.Process(fullText)
+	return fullText, nil
+}
+
+func (pB *promptBuilder) ProcessBatchFromDir(directory string, callback func(name string, messages []Message) error) error {
+	// Files are grouped by prefix
+	files, err := os.ReadDir(directory)
+	if err != nil {
+		return fmt.Errorf("error reading directory: %w", err)
+	}
+	batches := [][]Prompt{}
+	for _, file := range files {
+		// Check if the file is a valid batch member
+		if file.IsDir() {
+			continue
+		}
+		prefix, err := strconv.Atoi(strings.Split(file.Name(), "_")[0])
+		if err != nil {
+			continue
+		}
+		text, err := readFile(directory + "/" + file.Name())
+		if err != nil {
+			return fmt.Errorf("error reading file: %w", err)
+		}
+		// Expand the batch slice if needed
+		if len(batches) <= prefix {
+			batches = append(batches, []Prompt{})
+		}
+		// Add the file to the batch
+		batches[prefix] = append(batches[prefix], Prompt{Name: file.Name(), Text: text})
+	}
+
+	// Process batches
+	return pB.ProcessBatch(batches, callback)
+}
+
+func (pB *promptBuilder) ProcessBatch(batch [][]Prompt, callback func(name string, messages []Message) error) error {
+	for _, prompts := range batch {
+		wg := sync.WaitGroup{}
+		errChan := make(chan error, len(prompts))
+		wg.Add(len(prompts))
+		for i := 0; i < len(prompts); i++ {
+			go func(i int) {
+				defer wg.Done()
+				// Process the prompt
+				messages, err := pB.Process(prompts[i].Text)
+				if err != nil {
+					errChan <- fmt.Errorf("error processing prompt: %w", err)
+					return
+				}
+				// Remove the .prompt suffix
+				prompts[i].Name = strings.TrimSuffix(prompts[i].Name, ".prompt")
+				// Process the messages
+				err = callback(prompts[i].Name, messages)
+				if err != nil {
+					errChan <- fmt.Errorf("error processing callback: %w", err)
+					return
+				}
+			}(i)
+		}
+		wg.Wait()
+		close(errChan)
+		for err := range errChan {
+			return fmt.Errorf("error processing batch: %w", err)
+		}
+	}
+	return nil
+}
+
+func (pB *promptBuilder) ProcessFromFile(filename string) ([]Message, error) {
+	// Read file
+	text, err := readFile(filename)
+	if err != nil {
+		return []Message{}, fmt.Errorf("error reading file: %w", err)
+	}
+	// Process the file contents
+	messages, err := pB.Process(text)
+	if err != nil {
+		return []Message{}, fmt.Errorf("error processing file: %w", err)
+	}
+
+	return messages, nil
 }
 
 func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
@@ -132,7 +209,10 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 		if prompt[i] == '@' {
 			next(false)
 			start := i
-			for prompt[i] != ' ' && prompt[i] != '\n' {
+			for prompt[i] >= 'a' && prompt[i] <= 'z' ||
+				prompt[i] >= 'A' && prompt[i] <= 'Z' ||
+				prompt[i] >= '0' && prompt[i] <= '9' ||
+				prompt[i] == '_' || prompt[i] == '-' {
 				next(false)
 			}
 			id := prompt[start:i]
@@ -173,7 +253,10 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 					if prompt[i] == '@' {
 						next(false)
 						start := i
-						for prompt[i] != ' ' && prompt[i] != '\n' {
+						for prompt[i] >= 'a' && prompt[i] <= 'z' ||
+							prompt[i] >= 'A' && prompt[i] <= 'Z' ||
+							prompt[i] >= '0' && prompt[i] <= '9' ||
+							prompt[i] == '_' || prompt[i] == '-' {
 							next(false)
 						}
 						id := prompt[start:i]
@@ -206,7 +289,10 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 					if prompt[i] == '@' {
 						next(false)
 						start := i
-						for prompt[i] != ' ' && prompt[i] != '\n' {
+						for prompt[i] >= 'a' && prompt[i] <= 'z' ||
+							prompt[i] >= 'A' && prompt[i] <= 'Z' ||
+							prompt[i] >= '0' && prompt[i] <= '9' ||
+							prompt[i] == '_' || prompt[i] == '-' {
 							next(false)
 						}
 						id := prompt[start:i]

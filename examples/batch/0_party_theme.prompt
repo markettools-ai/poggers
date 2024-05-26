@@ -1,0 +1,5 @@
+system:
+    Come up with 5 costume party ideas.
+    @JSONOutput
+    @OutputSchema
+    [string]

@@ -8,17 +8,38 @@ import (
 )
 
 func main() {
-	promptBuilder := prompt.NewPromptBuilder(
-		map[string]string{
-			"PlayerStats": "The player is low HP. They have a sword, but their favorite weapon is a bow. They have 10 coins.",
-		},
-	)
+	promptBuilder := prompt.NewPromptBuilder()
 
-	messages, err := promptBuilder.ProcessFromFile("./examples/1_rpg_shop.prompt")
+	err := promptBuilder.
+		ProcessBatchFromDir(
+			"./examples/batch",
+			func(name string, messages []prompt.Message) error {
+				switch name {
+				case "0_party_theme":
+					promptBuilder.SetAnnotation("PartyTheme", "Under the Sea")
+				case "0_guests":
+					value, _ := json.Marshal([]map[string]interface{}{
+						{
+							"firstName": "John",
+							"hobbies":   []string{"swimming", "reading", "jogging"},
+							"age":       20,
+						},
+						{
+							"firstName": "Jane",
+							"hobbies":   []string{"painting", "acting", "singing"},
+							"age":       25,
+						},
+					})
+					promptBuilder.SetAnnotation("GuestList", string(value))
+				}
+				stringified, _ := json.MarshalIndent(messages, "", "  ")
+				fmt.Println(string(stringified))
+				return nil
+			},
+		)
+
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	stringifiedFromFile, _ := json.MarshalIndent(messages, "", "  ")
-	fmt.Println(string(stringifiedFromFile))
 }

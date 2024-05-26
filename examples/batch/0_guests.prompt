@@ -1,0 +1,12 @@
+system:
+    Generate the profile of 5 party guests.
+    @JSONOutput
+    @OutputSchema
+    [
+        {
+            "firstName": string,
+            "hobbies": [string], // 2-3 items
+            "age": number, // 20-30
+        }
+    ]
+    

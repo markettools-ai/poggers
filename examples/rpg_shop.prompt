@@ -1,5 +1,6 @@
 system:
     Generate 5 items sold in an RPG shop that would be useful to the player.
+    @JSONOutput
     @OutputSchema
     [
         {
@@ -8,6 +9,5 @@ system:
             "price": number + " coins" // Should range from 5 to 20 coins
         }
     ]
-    @JSONOutput
 user:
     @PlayerStats
