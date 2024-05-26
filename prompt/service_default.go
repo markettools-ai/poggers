@@ -92,7 +92,7 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 		if !isTabulated {
 			// Reset label
 			if label != "" {
-				messages = append(messages, Message{Author: label, Content: result.String()})
+				messages = append(messages, Message{Role: label, Content: result.String()})
 				result.Reset()
 				label = ""
 			}
@@ -240,7 +240,7 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 	}
 	// Last label
 	if label != "" {
-		messages = append(messages, Message{Author: label, Content: result.String()})
+		messages = append(messages, Message{Role: label, Content: result.String()})
 	}
 
 	return messages, nil

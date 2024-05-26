@@ -1,8 +1,8 @@
 package prompt
 
 type Message struct {
-	Author  string
-	Content string
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }
 
 type PromptBuilder interface {
