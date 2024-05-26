@@ -1,4 +1,4 @@
-package poggers
+package main
 
 import (
 	"bufio"

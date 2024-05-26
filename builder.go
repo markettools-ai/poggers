@@ -1,4 +1,4 @@
-package poggers
+package main
 
 type Message struct {
 	Role    string `json:"role"`

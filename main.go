@@ -3,17 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/markettools-ai/poggers/poggers"
 )
 
 func main() {
-	promptBuilder := poggers.NewPromptBuilder()
+	promptBuilder := NewPromptBuilder()
 
 	err := promptBuilder.
 		ProcessBatchFromDir(
 			"./examples/batch",
-			func(name string, messages []poggers.Message) error {
+			func(name string, messages []Message) error {
 				switch name {
 				case "0_party_theme":
 					promptBuilder.SetAnnotation("PartyTheme", "Under the Sea")
