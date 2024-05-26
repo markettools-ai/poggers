@@ -10,7 +10,8 @@ import (
 )
 
 type promptBuilder struct {
-	annotations map[string]string
+	annotations       map[string]string
+	annotationsMutexn sync.RWMutex
 }
 
 func NewPromptBuilder(annotations ...map[string]string) PromptBuilder {
@@ -25,7 +26,7 @@ func NewPromptBuilder(annotations ...map[string]string) PromptBuilder {
 	internalAnnotations["OutputSchema"] = OutputSchema
 	internalAnnotations["JSONOutput"] = JSONOutput
 
-	return &promptBuilder{internalAnnotations}
+	return &promptBuilder{internalAnnotations, sync.RWMutex{}}
 }
 
 func readFile(filename string) (string, error) {
@@ -216,7 +217,9 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 				next(false)
 			}
 			id := prompt[start:i]
+			pB.annotationsMutexn.RLock()
 			if value, ok := pB.annotations[id]; ok {
+				pB.annotationsMutexn.RUnlock()
 				// Add space before annotation if needed
 				if result.Len() > 0 && result.String()[result.Len()-1] != ' ' {
 					result.WriteByte(' ')
@@ -260,7 +263,9 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 							next(false)
 						}
 						id := prompt[start:i]
+						pB.annotationsMutexn.RLock()
 						if value, ok := pB.annotations[id]; ok {
+							pB.annotationsMutexn.RUnlock()
 							// Add space before annotation if needed
 							if result.Len() > 0 && result.String()[result.Len()-1] != ' ' {
 								result.WriteByte(' ')
@@ -296,7 +301,9 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 							next(false)
 						}
 						id := prompt[start:i]
+						pB.annotationsMutexn.RLock()
 						if value, ok := pB.annotations[id]; ok {
+							pB.annotationsMutexn.RUnlock()
 							// Add space before annotation if needed
 							if result.Len() > 0 && result.String()[result.Len()-1] != ' ' {
 								result.WriteByte(' ')
@@ -334,7 +341,9 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 
 func (pB *promptBuilder) SetAnnotation(id string, value interface{}) {
 	if value == nil {
+		pB.annotationsMutexn.Lock()
 		delete(pB.annotations, id)
+		pB.annotationsMutexn.Unlock()
 		return
 	}
 	pB.annotations[id] = fmt.Sprintf("%v", value)
