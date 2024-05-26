@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/markettools-ai/poggers/icon.png">
+</p>
+
 # poggers
 (TODO)
 
