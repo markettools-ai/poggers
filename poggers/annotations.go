@@ -1,4 +1,4 @@
-package prompt
+package poggers
 
 const (
 	OutputSchema = "This is the output schema:"
