@@ -57,7 +57,7 @@ func readFile(filename string) (string, error) {
 	return fullText, nil
 }
 
-func (pB *promptBuilder) ProcessBatchFromDir(directory string, callback func(name string, messages []Message, isLast bool) error) error {
+func (pB *promptBuilder) ProcessBatchFromDir(directory string, callback func(name string, messages []Message) error) error {
 	// Files are grouped by prefix
 	files, err := os.ReadDir(directory)
 	if err != nil {
@@ -89,7 +89,7 @@ func (pB *promptBuilder) ProcessBatchFromDir(directory string, callback func(nam
 	return pB.ProcessBatch(batches, callback)
 }
 
-func (pB *promptBuilder) ProcessBatch(batch [][]Prompt, callback func(name string, messages []Message, isLast bool) error) error {
+func (pB *promptBuilder) ProcessBatch(batch [][]Prompt, callback func(name string, messages []Message) error) error {
 	for _, prompts := range batch {
 		wg := sync.WaitGroup{}
 		errChan := make(chan error, len(prompts))
@@ -106,7 +106,7 @@ func (pB *promptBuilder) ProcessBatch(batch [][]Prompt, callback func(name strin
 				// Remove the .prompt suffix
 				prompts[i].Name = strings.TrimSuffix(prompts[i].Name, ".prompt")
 				// Process the messages
-				err = callback(prompts[i].Name, messages, i == len(prompts)-1)
+				err = callback(prompts[i].Name, messages)
 				if err != nil {
 					errChan <- fmt.Errorf("error processing callback: %w", err)
 					return

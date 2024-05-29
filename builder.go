@@ -11,8 +11,8 @@ type Prompt struct {
 }
 
 type PromptBuilder interface {
-	ProcessBatchFromDir(directory string, callback func(name string, messages []Message, isLast bool) error) error
-	ProcessBatch(batch [][]Prompt, callback func(name string, messages []Message, isLast bool) error) error
+	ProcessBatchFromDir(directory string, callback func(name string, messages []Message) error) error
+	ProcessBatch(batch [][]Prompt, callback func(name string, messages []Message) error) error
 
 	ProcessFromFile(filename string) ([]Message, error)
 	Process(prompt string) ([]Message, error)
