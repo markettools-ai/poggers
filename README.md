@@ -16,7 +16,7 @@
 
 ## Usage
 `grandma.prompt`
-```json
+```yaml
 system:
   Generate a short story about a grandma that has become a @GrandmasFate to @GrandmasMission.
 ```
