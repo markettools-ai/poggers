@@ -11,11 +11,11 @@ type Prompt struct {
 }
 
 type PromptBuilder interface {
-	ProcessBatchFromDir(directory string, callback func(name string, messages []Message) error) error
-	ProcessBatch(batch [][]Prompt, callback func(name string, messages []Message) error) error
+	ProcessBatchFromDir(directory string) error
+	ProcessBatch(batch [][]Prompt) error
 
 	ProcessFromFile(filename string) ([]Message, error)
-	Process(prompt string) ([]Message, error)
+	Process(prompt, name string) ([]Message, error)
 
 	SetAnnotation(id string, value interface{})
 }

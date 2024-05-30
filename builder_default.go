@@ -12,10 +12,14 @@ import (
 type promptBuilder struct {
 	annotations       map[string]string
 	annotationsMutexn sync.RWMutex
+	onBeforeProcess   func(name, prompt string) error
+	onAfterProcess    func(name string, messages []Message) error
 }
 
 type PromptBuilderOptions struct {
-	Annotations map[string]string
+	Annotations     map[string]string
+	OnBeforeProcess func(name, prompt string) error
+	OnAfterProcess  func(name string, messages []Message) error
 }
 
 func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
@@ -24,6 +28,8 @@ func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
 		"OutputSchema": OutputSchema,
 		"JSONOutput":   JSONOutput,
 	}
+	var onBeforeProcess func(name, prompt string) error
+	var onAfterProcess func(name string, messages []Message) error
 	// Override options
 	if len(options) > 0 {
 		if options[0].Annotations != nil {
@@ -31,9 +37,11 @@ func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
 				internalAnnotations[k] = v
 			}
 		}
+		onBeforeProcess = options[0].OnBeforeProcess
+		onAfterProcess = options[0].OnAfterProcess
 	}
 
-	return &promptBuilder{internalAnnotations, sync.RWMutex{}}
+	return &promptBuilder{internalAnnotations, sync.RWMutex{}, onBeforeProcess, onAfterProcess}
 }
 
 func readFile(filename string) (string, error) {
@@ -57,7 +65,7 @@ func readFile(filename string) (string, error) {
 	return fullText, nil
 }
 
-func (pB *promptBuilder) ProcessBatchFromDir(directory string, callback func(name string, messages []Message) error) error {
+func (pB *promptBuilder) ProcessBatchFromDir(directory string) error {
 	// Files are grouped by prefix
 	files, err := os.ReadDir(directory)
 	if err != nil {
@@ -86,10 +94,10 @@ func (pB *promptBuilder) ProcessBatchFromDir(directory string, callback func(nam
 	}
 
 	// Process batches
-	return pB.ProcessBatch(batches, callback)
+	return pB.ProcessBatch(batches)
 }
 
-func (pB *promptBuilder) ProcessBatch(batch [][]Prompt, callback func(name string, messages []Message) error) error {
+func (pB *promptBuilder) ProcessBatch(batch [][]Prompt) error {
 	for _, prompts := range batch {
 		wg := sync.WaitGroup{}
 		errChan := make(chan error, len(prompts))
@@ -97,18 +105,12 @@ func (pB *promptBuilder) ProcessBatch(batch [][]Prompt, callback func(name strin
 		for i := 0; i < len(prompts); i++ {
 			go func(i int) {
 				defer wg.Done()
-				// Process the prompt
-				messages, err := pB.Process(prompts[i].Text)
-				if err != nil {
-					errChan <- fmt.Errorf("error processing prompt: %w", err)
-					return
-				}
 				// Remove the .prompt suffix
 				prompts[i].Name = strings.TrimSuffix(prompts[i].Name, ".prompt")
-				// Process the messages
-				err = callback(prompts[i].Name, messages)
+				// Process the prompt
+				_, err := pB.Process(prompts[i].Text, prompts[i].Name)
 				if err != nil {
-					errChan <- fmt.Errorf("error processing callback: %w", err)
+					errChan <- fmt.Errorf("error processing prompt: %w", err)
 					return
 				}
 			}(i)
@@ -128,8 +130,11 @@ func (pB *promptBuilder) ProcessFromFile(filename string) ([]Message, error) {
 	if err != nil {
 		return []Message{}, fmt.Errorf("error reading file: %w", err)
 	}
+	// Remove the .prompt suffix
+	pathParts := strings.Split(filename, "/")
+	name := strings.TrimSuffix(pathParts[len(pathParts)-1], ".prompt")
 	// Process the file contents
-	messages, err := pB.Process(text)
+	messages, err := pB.Process(text, name)
 	if err != nil {
 		return []Message{}, fmt.Errorf("error processing file: %w", err)
 	}
@@ -144,7 +149,7 @@ func (pB *promptBuilder) getAnnotation(id string) string {
 	return annotation
 }
 
-func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
+func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 	prompt = "\n" + prompt + "\n"
 	var result strings.Builder
 	messages := []Message{}
@@ -324,6 +329,32 @@ func (pB *promptBuilder) Process(prompt string) ([]Message, error) {
 	}
 
 	return messages, nil
+}
+
+func (pB *promptBuilder) Process(prompt, name string) ([]Message, error) {
+	// Process the onBeforeProcess callback
+	if pB.onBeforeProcess != nil {
+		err := pB.onBeforeProcess(name, prompt)
+		if err != nil {
+			return []Message{}, fmt.Errorf("error before processing: %w", err)
+		}
+	}
+
+	// Process the prompt
+	results, err := pB.processPrompt(prompt)
+	if err != nil {
+		return []Message{}, fmt.Errorf("error processing prompt: %w", err)
+	}
+
+	// Process the onAfterProcess callback
+	if pB.onAfterProcess != nil {
+		err := pB.onAfterProcess(name, results)
+		if err != nil {
+			return []Message{}, fmt.Errorf("error after processing: %w", err)
+		}
+	}
+
+	return results, nil
 }
 
 func (pB *promptBuilder) SetAnnotation(id string, value interface{}) {
