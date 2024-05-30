@@ -3,7 +3,7 @@
   <h1 align="center">Welcome to poggers!</h1>
 </p>
 
-**poggers** is a Golang library and an IDL that assists in creating detailed, and multi-level, optimized, and human-readable LLM prompts.
+**poggers** is a Golang library and an IDL that assists in creating detailed, multi-level, optimized, and human-readable LLM prompts.
 
 > Make sure to download poggers' [VSCode Extension](https://marketplace.visualstudio.com/items?itemName=markettools-ai.poggers-prompt)!
 
