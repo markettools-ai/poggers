@@ -2,6 +2,7 @@ package poggers
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -368,5 +369,10 @@ func (pB *promptBuilder) SetAnnotation(id string, value interface{}) {
 		pB.annotationsMutexn.Unlock()
 		return
 	}
-	pB.annotations[id] = fmt.Sprintf("%v", value)
+	valueJSON, err := json.Marshal(value)
+	if err != nil {
+		pB.annotations[id] = fmt.Sprintf("%v", value)
+	} else {
+		pB.annotations[id] = string(valueJSON)
+	}
 }
