@@ -175,16 +175,35 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 			if i == len(prompt) {
 				continue
 			}
-			// Tabulation
-			if prompt[i] == '\t' || i+4 < len(prompt) && prompt[i:i+4] == "    " {
+			// Comment
+			if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
+				// Skip the comment
+				for prompt[i] != '\n' {
+					next(false)
+				}
+				continue
+			}
+			// Check for tabulation
+			if prompt[i] == '\t' || prompt[i] == ' ' {
 				isTabulated = true
+				for prompt[i] == '\t' || prompt[i] == ' ' {
+					next(false)
+				}
+				// Check for new line
+				if prompt[i] == '\n' {
+					continue
+				}
+				// Comment
+				if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
+					// Skip the comment
+					for prompt[i] != '\n' {
+						next(false)
+					}
+					continue
+				}
 				// Check for label
 				if label == "" {
 					return []Message{}, fmt.Errorf("found tabulated text without a label")
-				}
-				// Skip tabulation
-				for prompt[i] == ' ' || prompt[i] == '\t' {
-					next(false)
 				}
 			}
 			continue
@@ -219,6 +238,14 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 					for prompt[i] == '\t' || prompt[i] == ' ' {
 						next(false)
 					}
+					// Comment
+					if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
+						// Skip the comment
+						for prompt[i] != '\n' {
+							next(false)
+						}
+						continue
+					}
 					// End the label
 					if prompt[i] == '\n' {
 						messages = append(messages, Message{Role: label, Content: ""})
@@ -241,10 +268,19 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 					}
 					// Start getting the value
 					valueStart := i
-					for prompt[i] != '\n' {
+					// Skip until new line or comment
+					for prompt[i] != '\n' || (prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/') {
 						next(false)
 					}
 					constants[prompt[start:i]] = prompt[valueStart:i]
+					// Comment
+					if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
+						// Skip the comment
+						for prompt[i] != '\n' {
+							next(false)
+						}
+						continue
+					}
 					continue
 				} else {
 					return []Message{}, fmt.Errorf("expected colon or equals sign, found %q", prompt[i])
@@ -277,14 +313,21 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 				next(true)
 				continue
 			}
-			// Comments
-			if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
-				next(true)
+			// AI Comments
+			if prompt[i] == '#' {
 				next(true)
 				for prompt[i] != '\n' {
 					next(true)
 				}
 				next(true)
+				continue
+			}
+			// Comment
+			if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
+				// Skip the comment
+				for prompt[i] != '\n' {
+					next(false)
+				}
 				continue
 			}
 			// Spaces
