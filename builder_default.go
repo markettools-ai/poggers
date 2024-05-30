@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,13 +14,13 @@ import (
 type promptBuilder struct {
 	annotations       map[string]string
 	annotationsMutexn sync.RWMutex
-	onBeforeProcess   func(name, prompt string) (bool, error)
+	onBeforeProcess   func(name string, constants map[string]string) (bool, error)
 	onAfterProcess    func(name string, messages []Message) error
 }
 
 type PromptBuilderOptions struct {
 	Annotations     map[string]string
-	OnBeforeProcess func(name, prompt string) (skip bool, err error)
+	OnBeforeProcess func(name string, constants map[string]string) (skip bool, err error)
 	OnAfterProcess  func(name string, messages []Message) error
 }
 
@@ -30,7 +31,7 @@ func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
 		"JSONOutput":   JSONOutput,
 		"LockedInput":  LockedInput,
 	}
-	var onBeforeProcess func(name, prompt string) (bool, error)
+	var onBeforeProcess func(name string, constants map[string]string) (bool, error)
 	var onAfterProcess func(name string, messages []Message) error
 	// Override options
 	if len(options) > 0 {
@@ -155,6 +156,7 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 	prompt = "\n" + prompt + "\n"
 	var result strings.Builder
 	messages := []Message{}
+	constants := map[string]string{}
 	var stack int
 	var label string
 	var isTabulated bool
@@ -187,7 +189,7 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 			}
 			continue
 		}
-		// Labels
+		// Labels or Constants
 		if !isTabulated {
 			// Reset label
 			if label != "" {
@@ -196,50 +198,62 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 				label = ""
 			}
 			start := i
-			// Get label
-			foundLabel := false
-			for (prompt[i] >= 'a' && prompt[i] <= 'z') ||
-				(prompt[i] >= 'A' && prompt[i] <= 'Z') ||
-				(prompt[i] >= '0' && prompt[i] <= '9') ||
-				prompt[i] == '_' || prompt[i] == '-' {
-				foundLabel = true
-				next(false)
-			}
-			if prompt[i] != ':' {
-				return []Message{}, fmt.Errorf("expected a label, found %q", prompt[start:i])
-			}
-			if !foundLabel {
-				return []Message{}, fmt.Errorf("expected a label, found nothing")
-			}
-			label = prompt[start:i]
-			// Skip the colon
-			next(false)
-			// Skip spaces
-			for prompt[i] == ' ' {
-				next(false)
-			}
-			continue
-		}
-
-		// Escape characters
-		if prompt[i] == '\\' {
-			next(false)
-			next(true)
-			continue
-		}
-		// Annotations
-		if prompt[i] == '@' {
-			next(false)
-			start := i
-			for prompt[i] >= 'a' && prompt[i] <= 'z' ||
+			// Check for word
+			if prompt[i] >= 'a' && prompt[i] <= 'z' ||
 				prompt[i] >= 'A' && prompt[i] <= 'Z' ||
 				prompt[i] >= '0' && prompt[i] <= '9' ||
 				prompt[i] == '_' || prompt[i] == '-' {
-				next(false)
+				// Start getting the word
+				for (prompt[i] >= 'a' && prompt[i] <= 'z') ||
+					(prompt[i] >= 'A' && prompt[i] <= 'Z') ||
+					(prompt[i] >= '0' && prompt[i] <= '9') ||
+					prompt[i] == '_' || prompt[i] == '-' {
+					next(false)
+				}
+				// Check for colon
+				if prompt[i] == ':' {
+					label = prompt[start:i]
+					// Skip the colon
+					next(false)
+					// Skip spaces
+					for prompt[i] == '\t' || prompt[i] == ' ' {
+						next(false)
+					}
+					// End the label
+					if prompt[i] == '\n' {
+						messages = append(messages, Message{Role: label, Content: ""})
+						continue
+					} else {
+						return []Message{}, fmt.Errorf("expected new line, found %q", prompt[i])
+					}
+				}
+				// Skip spaces
+				for prompt[i] == '\t' || prompt[i] == ' ' {
+					next(false)
+				}
+				// Check for equals sign
+				if prompt[i] == '=' {
+					// Skip the equals sign
+					next(false)
+					// Skip spaces
+					for prompt[i] == '\t' || prompt[i] == ' ' {
+						next(false)
+					}
+					// Start getting the value
+					valueStart := i
+					for prompt[i] != '\n' {
+						next(false)
+					}
+					constants[prompt[start:i]] = prompt[valueStart:i]
+					continue
+				} else {
+					return []Message{}, fmt.Errorf("expected colon or equals sign, found %q", prompt[i])
+				}
+			} else {
+				return []Message{}, fmt.Errorf("expected label or constant, found nothing")
 			}
-			result.WriteString(pB.getAnnotation(prompt[start:i]))
-			continue
 		}
+
 		// Brackets
 		switch prompt[i] {
 		case '{', '[':
@@ -258,25 +272,6 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 			if prompt[i] == '"' {
 				next(true)
 				for prompt[i] != '"' {
-					// Escape characters
-					if prompt[i] == '\\' {
-						next(false)
-						next(true)
-						continue
-					}
-					// Annotations
-					if prompt[i] == '@' {
-						next(false)
-						start := i
-						for prompt[i] >= 'a' && prompt[i] <= 'z' ||
-							prompt[i] >= 'A' && prompt[i] <= 'Z' ||
-							prompt[i] >= '0' && prompt[i] <= '9' ||
-							prompt[i] == '_' || prompt[i] == '-' {
-							next(false)
-						}
-						result.WriteString(pB.getAnnotation(prompt[start:i]))
-						continue
-					}
 					next(true)
 				}
 				next(true)
@@ -287,41 +282,20 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 				next(true)
 				next(true)
 				for prompt[i] != '\n' {
-					// Escape characters
-					if prompt[i] == '\\' {
-						next(false)
-						next(true)
-						continue
-					}
-					// Annotations
-					if prompt[i] == '@' {
-						next(false)
-						start := i
-						for prompt[i] >= 'a' && prompt[i] <= 'z' ||
-							prompt[i] >= 'A' && prompt[i] <= 'Z' ||
-							prompt[i] >= '0' && prompt[i] <= '9' ||
-							prompt[i] == '_' || prompt[i] == '-' {
-							next(false)
-						}
-						result.WriteString(pB.getAnnotation(prompt[start:i]))
-						continue
-					}
 					next(true)
 				}
 				next(true)
 				continue
 			}
 			// Spaces
-			foundSpace := false
-			for prompt[i] == ' ' || prompt[i] == '\n' || prompt[i] == '\t' {
+			if prompt[i] == ' ' || prompt[i] == '\n' || prompt[i] == '\t' {
 				next(false)
-				foundSpace = true
-			}
-			if foundSpace {
+				for prompt[i] == ' ' || prompt[i] == '\n' || prompt[i] == '\t' {
+					next(false)
+				}
 				continue
 			}
 		}
-
 		// Other characters
 		next(true)
 	}
@@ -334,9 +308,23 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 }
 
 func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
-	// Process the onBeforeProcess callback
+	// Process the prompt
+	results, err := pB.processPrompt(prompt)
+	if err != nil {
+		return []Message{}, fmt.Errorf("error processing prompt: %w", err)
+	}
+
+	// Get constants
+	constants := map[string]string{}
+	constantsMatches := regexp.MustCompile(`(?m)^[A-Za-z_\-][A-Za-z_\-0-9]*\s*=\s*.*$`).FindAllString(prompt, -1)
+	for _, match := range constantsMatches {
+		parts := strings.Split(match, "=")
+		constants[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+	}
+
+	// Call onBeforeProcess callback
 	if pB.onBeforeProcess != nil {
-		skip, err := pB.onBeforeProcess(name, prompt)
+		skip, err := pB.onBeforeProcess(name, constants)
 		if err != nil {
 			return []Message{}, fmt.Errorf("error before processing: %w", err)
 		}
@@ -345,13 +333,12 @@ func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 		}
 	}
 
-	// Process the prompt
-	results, err := pB.processPrompt(prompt)
-	if err != nil {
-		return []Message{}, fmt.Errorf("error processing prompt: %w", err)
-	}
+	// Replace annotations
+	regexp.MustCompile(`@[A-Za-z0-9_-]+`).ReplaceAllStringFunc(prompt, func(annotation string) string {
+		return pB.getAnnotation(annotation[1:])
+	})
 
-	// Process the onAfterProcess callback
+	// Call onAfterProcess callback
 	if pB.onAfterProcess != nil {
 		err := pB.onAfterProcess(name, results)
 		if err != nil {
