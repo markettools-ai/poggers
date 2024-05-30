@@ -34,8 +34,13 @@ func main() {
   // Create a new prompt builder
   promptBuilder := poggers.NewPromptBuilder(
     // Define annotations on initialization
-    map[string]string{
-      "GrandmasFate": "superhero",
+    poggers.PromptBuilderOptions{
+			Annotations: map[string]string{
+        "GrandmasFate": "superhero",
+      },
+      // You can also define callbacks
+      OnBeforeProcess: nil,
+      OnAfterProcess: nil,
     },
   )
   // Annotations can also be set individually
