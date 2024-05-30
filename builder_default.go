@@ -12,13 +12,13 @@ import (
 type promptBuilder struct {
 	annotations       map[string]string
 	annotationsMutexn sync.RWMutex
-	onBeforeProcess   func(name, prompt string) error
+	onBeforeProcess   func(name, prompt string) (bool, error)
 	onAfterProcess    func(name string, messages []Message) error
 }
 
 type PromptBuilderOptions struct {
 	Annotations     map[string]string
-	OnBeforeProcess func(name, prompt string) error
+	OnBeforeProcess func(name, prompt string) (skip bool, err error)
 	OnAfterProcess  func(name string, messages []Message) error
 }
 
@@ -27,8 +27,9 @@ func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
 	internalAnnotations := map[string]string{
 		"OutputSchema": OutputSchema,
 		"JSONOutput":   JSONOutput,
+		"LockedInput":  LockedInput,
 	}
-	var onBeforeProcess func(name, prompt string) error
+	var onBeforeProcess func(name, prompt string) (bool, error)
 	var onAfterProcess func(name string, messages []Message) error
 	// Override options
 	if len(options) > 0 {
@@ -334,9 +335,12 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 	// Process the onBeforeProcess callback
 	if pB.onBeforeProcess != nil {
-		err := pB.onBeforeProcess(name, prompt)
+		skip, err := pB.onBeforeProcess(name, prompt)
 		if err != nil {
 			return []Message{}, fmt.Errorf("error before processing: %w", err)
+		}
+		if skip {
+			return nil, nil
 		}
 	}
 
