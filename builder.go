@@ -15,7 +15,7 @@ type PromptBuilder interface {
 	ProcessBatch(batch [][]Prompt) error
 
 	ProcessFromFile(filename string) ([]Message, error)
-	Process(prompt, name string) ([]Message, error)
+	Process(name, prompt string) ([]Message, error)
 
 	SetAnnotation(id string, value interface{})
 }

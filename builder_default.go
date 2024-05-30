@@ -108,7 +108,7 @@ func (pB *promptBuilder) ProcessBatch(batch [][]Prompt) error {
 				// Remove the .prompt suffix
 				prompts[i].Name = strings.TrimSuffix(prompts[i].Name, ".prompt")
 				// Process the prompt
-				_, err := pB.Process(prompts[i].Text, prompts[i].Name)
+				_, err := pB.Process(prompts[i].Name, prompts[i].Text)
 				if err != nil {
 					errChan <- fmt.Errorf("error processing prompt: %w", err)
 					return
@@ -134,7 +134,7 @@ func (pB *promptBuilder) ProcessFromFile(filename string) ([]Message, error) {
 	pathParts := strings.Split(filename, "/")
 	name := strings.TrimSuffix(pathParts[len(pathParts)-1], ".prompt")
 	// Process the file contents
-	messages, err := pB.Process(text, name)
+	messages, err := pB.Process(name, text)
 	if err != nil {
 		return []Message{}, fmt.Errorf("error processing file: %w", err)
 	}
@@ -331,7 +331,7 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 	return messages, nil
 }
 
-func (pB *promptBuilder) Process(prompt, name string) ([]Message, error) {
+func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 	// Process the onBeforeProcess callback
 	if pB.onBeforeProcess != nil {
 		err := pB.onBeforeProcess(name, prompt)
