@@ -248,7 +248,6 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 					}
 					// End the label
 					if prompt[i] == '\n' {
-						messages = append(messages, Message{Role: label, Content: ""})
 						continue
 					} else {
 						return []Message{}, fmt.Errorf("expected new line, found %q", prompt[i])
@@ -377,9 +376,12 @@ func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 	}
 
 	// Replace annotations
-	regexp.MustCompile(`@[A-Za-z0-9_-]+`).ReplaceAllStringFunc(prompt, func(annotation string) string {
-		return pB.getAnnotation(annotation[1:])
-	})
+	annotations := regexp.MustCompile(`@[A-Za-z0-9_-]+`)
+	for i, message := range results {
+		results[i].Content = annotations.ReplaceAllStringFunc(message.Content, func(annotation string) string {
+			return pB.getAnnotation(annotation[1:])
+		})
+	}
 
 	// Call onAfterProcess callback
 	if pB.onAfterProcess != nil {
