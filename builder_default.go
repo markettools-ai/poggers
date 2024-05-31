@@ -414,7 +414,7 @@ func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 	annotations := regexp.MustCompile(`@[A-Za-z0-9_-]+\n`)
 	for i, message := range results {
 		results[i].Content = annotations.ReplaceAllStringFunc(message.Content, func(annotation string) string {
-			return pB.getAnnotation(annotation[1:])
+			return pB.getAnnotation(strings.TrimSpace(annotation)[1:])
 		})
 	}
 
