@@ -268,7 +268,7 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 					// Start getting the value
 					valueStart := i
 					// Skip until new line or comment
-					for prompt[i] != '\n' || (prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/') {
+					for prompt[i] != '\n' && !(prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/') {
 						next(false)
 					}
 					constants[prompt[start:i]] = prompt[valueStart:i]
