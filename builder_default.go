@@ -297,8 +297,18 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 				prompt[i] == '_' || prompt[i] == '-' {
 				next(true)
 			}
+			// Skip spaces
+			if prompt[i] == '\t' || prompt[i] == ' ' {
+				for prompt[i] == '\t' || prompt[i] == ' ' {
+					next(false)
+				}
+			}
 			// Add line break to separate annotations
 			result.Write([]byte("\n"))
+			// Check for new line
+			if prompt[i] == '\n' {
+				continue
+			}
 		}
 		// Brackets
 		switch prompt[i] {
@@ -327,8 +337,18 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 							prompt[i] == '_' || prompt[i] == '-' {
 							next(true)
 						}
+						// Skip spaces
+						if prompt[i] == '\t' || prompt[i] == ' ' {
+							for prompt[i] == '\t' || prompt[i] == ' ' {
+								next(false)
+							}
+						}
 						// Add line break to separate annotations
 						result.Write([]byte("\n"))
+						// Check for new line
+						if prompt[i] == '\n' {
+							continue
+						}
 					}
 					next(true)
 				}
@@ -348,8 +368,18 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 							prompt[i] == '_' || prompt[i] == '-' {
 							next(true)
 						}
+						// Skip spaces
+						if prompt[i] == '\t' || prompt[i] == ' ' {
+							for prompt[i] == '\t' || prompt[i] == ' ' {
+								next(false)
+							}
+						}
 						// Add line break to separate annotations
 						result.Write([]byte("\n"))
+						// Check for new line
+						if prompt[i] == '\n' {
+							continue
+						}
 					}
 					next(true)
 				}
