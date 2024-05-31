@@ -152,7 +152,7 @@ func (pB *promptBuilder) getAnnotation(id string) string {
 	return annotation
 }
 
-func (pB *promptBuilder) processPrompt(prompt string) ([]Message, map[string]string, error) {
+func processPrompt(prompt string) ([]Message, map[string]string, error) {
 	prompt = "\n" + prompt + "\n"
 	var result strings.Builder
 	messages := []Message{}
@@ -423,7 +423,7 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, map[string]str
 
 func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 	// Process the prompt
-	results, constants, err := pB.processPrompt(prompt)
+	results, constants, err := processPrompt(prompt)
 	if err != nil {
 		return []Message{}, fmt.Errorf("error processing prompt: %w", err)
 	}
