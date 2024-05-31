@@ -152,7 +152,7 @@ func (pB *promptBuilder) getAnnotation(id string) string {
 	return annotation
 }
 
-func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
+func (pB *promptBuilder) processPrompt(prompt string) ([]Message, map[string]string, error) {
 	prompt = "\n" + prompt + "\n"
 	var result strings.Builder
 	messages := []Message{}
@@ -203,7 +203,7 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 				}
 				// Check for label
 				if label == "" {
-					return []Message{}, fmt.Errorf("found tabulated text without a label")
+					return []Message{}, constants, fmt.Errorf("found tabulated text without a label")
 				}
 			}
 			continue
@@ -250,7 +250,7 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 					if prompt[i] == '\n' {
 						continue
 					} else {
-						return []Message{}, fmt.Errorf("expected new line, found %q", prompt[i])
+						return []Message{}, constants, fmt.Errorf("expected new line, found %q", prompt[i])
 					}
 				}
 				constant := prompt[start:i]
@@ -283,10 +283,10 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 					}
 					continue
 				} else {
-					return []Message{}, fmt.Errorf("expected colon or equals sign, found %q", prompt[i])
+					return []Message{}, constants, fmt.Errorf("expected colon or equals sign, found %q", prompt[i])
 				}
 			} else {
-				return []Message{}, fmt.Errorf("expected label or constant, found nothing")
+				return []Message{}, constants, fmt.Errorf("expected label or constant, found nothing")
 			}
 		}
 		// Annotations
@@ -412,22 +412,14 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 		messages = append(messages, Message{Role: label, Content: result.String()})
 	}
 
-	return messages, nil
+	return messages, constants, nil
 }
 
 func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 	// Process the prompt
-	results, err := pB.processPrompt(prompt)
+	results, constants, err := pB.processPrompt(prompt)
 	if err != nil {
 		return []Message{}, fmt.Errorf("error processing prompt: %w", err)
-	}
-
-	// Get constants
-	constants := map[string]string{}
-	constantsMatches := regexp.MustCompile(`(?m)^[A-Za-z_\-][A-Za-z_\-0-9]*\s*=\s*.*$`).FindAllString(prompt, -1)
-	for _, match := range constantsMatches {
-		parts := strings.Split(match, "=")
-		constants[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
 	}
 
 	// Call onBeforeProcess callback
