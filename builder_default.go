@@ -253,6 +253,7 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 						return []Message{}, fmt.Errorf("expected new line, found %q", prompt[i])
 					}
 				}
+				constant := prompt[start:i]
 				// Skip spaces
 				for prompt[i] == '\t' || prompt[i] == ' ' {
 					next(false)
@@ -271,7 +272,7 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 					for prompt[i] != '\n' && !(prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/') {
 						next(false)
 					}
-					constants[prompt[start:i]] = prompt[valueStart:i]
+					constants[constant] = prompt[valueStart:i]
 					// Comment
 					if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
 						// Skip the comment
