@@ -288,7 +288,18 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 				return []Message{}, fmt.Errorf("expected label or constant, found nothing")
 			}
 		}
-
+		// Annotations
+		if prompt[i] == '@' {
+			next(true)
+			for prompt[i] >= 'a' && prompt[i] <= 'z' ||
+				prompt[i] >= 'A' && prompt[i] <= 'Z' ||
+				prompt[i] >= '0' && prompt[i] <= '9' ||
+				prompt[i] == '_' || prompt[i] == '-' {
+				next(true)
+			}
+			// Add line break to separate annotations
+			result.Write([]byte("\n"))
+		}
 		// Brackets
 		switch prompt[i] {
 		case '{', '[':
@@ -307,6 +318,18 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 			if prompt[i] == '"' {
 				next(true)
 				for prompt[i] != '"' {
+					// Annotations
+					if prompt[i] == '@' {
+						next(true)
+						for prompt[i] >= 'a' && prompt[i] <= 'z' ||
+							prompt[i] >= 'A' && prompt[i] <= 'Z' ||
+							prompt[i] >= '0' && prompt[i] <= '9' ||
+							prompt[i] == '_' || prompt[i] == '-' {
+							next(true)
+						}
+						// Add line break to separate annotations
+						result.Write([]byte("\n"))
+					}
 					next(true)
 				}
 				next(true)
@@ -316,6 +339,18 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, error) {
 			if prompt[i] == '#' {
 				next(true)
 				for prompt[i] != '\n' {
+					// Annotations
+					if prompt[i] == '@' {
+						next(true)
+						for prompt[i] >= 'a' && prompt[i] <= 'z' ||
+							prompt[i] >= 'A' && prompt[i] <= 'Z' ||
+							prompt[i] >= '0' && prompt[i] <= '9' ||
+							prompt[i] == '_' || prompt[i] == '-' {
+							next(true)
+						}
+						// Add line break to separate annotations
+						result.Write([]byte("\n"))
+					}
 					next(true)
 				}
 				next(true)
@@ -376,7 +411,7 @@ func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 	}
 
 	// Replace annotations
-	annotations := regexp.MustCompile(`@[A-Za-z0-9_-]+`)
+	annotations := regexp.MustCompile(`@[A-Za-z0-9_-]+\n`)
 	for i, message := range results {
 		results[i].Content = annotations.ReplaceAllStringFunc(message.Content, func(annotation string) string {
 			return pB.getAnnotation(annotation[1:])
