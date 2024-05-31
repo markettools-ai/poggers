@@ -272,7 +272,7 @@ func (pB *promptBuilder) processPrompt(prompt string) ([]Message, map[string]str
 					for prompt[i] != '\n' && !(prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/') {
 						next(false)
 					}
-					constants[constant] = prompt[valueStart:i]
+					constants[constant] = prompt[valueStart : i-1]
 					// Comment
 					if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
 						// Skip the comment
