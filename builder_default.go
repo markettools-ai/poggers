@@ -15,13 +15,13 @@ type promptBuilder struct {
 	annotations       map[string]string
 	annotationsMutexn sync.RWMutex
 	onBeforeProcess   func(name string, constants map[string]string) (bool, error)
-	onAfterProcess    func(name string, messages []Message) error
+	onAfterProcess    func(name string, constants map[string]string, messages []Message) error
 }
 
 type PromptBuilderOptions struct {
 	Annotations     map[string]string
 	OnBeforeProcess func(name string, constants map[string]string) (skip bool, err error)
-	OnAfterProcess  func(name string, messages []Message) error
+	OnAfterProcess  func(name string, constants map[string]string, messages []Message) error
 }
 
 func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
@@ -32,7 +32,7 @@ func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
 		"LockedInput":  LockedInput,
 	}
 	var onBeforeProcess func(name string, constants map[string]string) (bool, error)
-	var onAfterProcess func(name string, messages []Message) error
+	var onAfterProcess func(name string, constants map[string]string, messages []Message) error
 	// Override options
 	if len(options) > 0 {
 		if options[0].Annotations != nil {
@@ -461,7 +461,7 @@ func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 
 	// Call onAfterProcess callback
 	if pB.onAfterProcess != nil {
-		err := pB.onAfterProcess(name, results)
+		err := pB.onAfterProcess(name, constants, results)
 		if err != nil {
 			return []Message{}, fmt.Errorf("error after processing: %w", err)
 		}
