@@ -161,11 +161,24 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 	var label string
 	var isTabulated bool
 	for i := 0; i < len(prompt); {
+		// Skip to next character
 		next := func(write bool) {
 			if write {
 				result.WriteByte(prompt[i])
 			}
 			i++
+		}
+		// Try to parse a comment
+		parseComment := func() bool {
+			// Comment
+			if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
+				// Skip the comment
+				for prompt[i] != '\n' {
+					next(false)
+				}
+				return true
+			}
+			return false
 		}
 
 		// New line
@@ -176,11 +189,7 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 				continue
 			}
 			// Comment
-			if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
-				// Skip the comment
-				for prompt[i] != '\n' {
-					next(false)
-				}
+			if parseComment() {
 				continue
 			}
 			// Check for tabulation
@@ -194,11 +203,7 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 					continue
 				}
 				// Comment
-				if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
-					// Skip the comment
-					for prompt[i] != '\n' {
-						next(false)
-					}
+				if parseComment() {
 					continue
 				}
 				// Check for label
@@ -426,6 +431,13 @@ func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 	results, constants, err := processPrompt(prompt)
 	if err != nil {
 		return []Message{}, fmt.Errorf("error processing prompt: %w", err)
+	}
+
+	// Remove the prefix from the prompt name
+	if parts := strings.Split(name, "_"); len(parts) > 1 {
+		name = parts[1]
+	} else {
+		name = parts[0]
 	}
 
 	// Call onBeforeProcess callback
