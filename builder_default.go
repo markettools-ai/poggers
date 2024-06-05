@@ -14,14 +14,14 @@ import (
 type promptBuilder struct {
 	annotations       map[string]string
 	annotationsMutexn sync.RWMutex
-	onBeforeProcess   func(name string, constants map[string]string) (bool, error)
-	onAfterProcess    func(name string, constants map[string]string, messages []Message) error
+	onBeforeProcess   func(name string, index int, constants map[string]string) (bool, error)
+	onAfterProcess    func(name string, index int, constants map[string]string, messages []Message) error
 }
 
 type PromptBuilderOptions struct {
 	Annotations     map[string]string
-	OnBeforeProcess func(name string, constants map[string]string) (skip bool, err error)
-	OnAfterProcess  func(name string, constants map[string]string, messages []Message) error
+	OnBeforeProcess func(name string, index int, constants map[string]string) (skip bool, err error)
+	OnAfterProcess  func(name string, index int, constants map[string]string, messages []Message) error
 }
 
 func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
@@ -31,8 +31,8 @@ func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
 		"JSONOutput":   JSONOutput,
 		"LockedInput":  LockedInput,
 	}
-	var onBeforeProcess func(name string, constants map[string]string) (bool, error)
-	var onAfterProcess func(name string, constants map[string]string, messages []Message) error
+	var onBeforeProcess func(name string, index int, constants map[string]string) (bool, error)
+	var onAfterProcess func(name string, index int, constants map[string]string, messages []Message) error
 	// Override options
 	if len(options) > 0 {
 		if options[0].Annotations != nil {
@@ -434,15 +434,17 @@ func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 	}
 
 	// Remove the prefix from the prompt name
+	index := 0
 	if parts := strings.Split(name, "_"); len(parts) > 1 {
 		name = parts[1]
+		index, _ = strconv.Atoi(parts[0])
 	} else {
 		name = parts[0]
 	}
 
 	// Call onBeforeProcess callback
 	if pB.onBeforeProcess != nil {
-		skip, err := pB.onBeforeProcess(name, constants)
+		skip, err := pB.onBeforeProcess(name, index, constants)
 		if err != nil {
 			return []Message{}, fmt.Errorf("error before processing: %w", err)
 		}
@@ -461,7 +463,7 @@ func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
 
 	// Call onAfterProcess callback
 	if pB.onAfterProcess != nil {
-		err := pB.onAfterProcess(name, constants, results)
+		err := pB.onAfterProcess(name, index, constants, results)
 		if err != nil {
 			return []Message{}, fmt.Errorf("error after processing: %w", err)
 		}
