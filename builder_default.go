@@ -369,9 +369,9 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 			}
 			// AI Comments
 			if prompt[i] == '#' {
-				next(true)
-				// Continue until new line or comment
 				start := i
+				next(false)
+				// Continue until new line or comment
 				for prompt[i] != '\n' &&
 					!(prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/') {
 					// Annotations
