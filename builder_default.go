@@ -371,6 +371,7 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 			if prompt[i] == '#' {
 				next(true)
 				// Continue until new line or comment
+				start := i
 				for prompt[i] != '\n' &&
 					!(prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/') {
 					// Annotations
@@ -395,8 +396,11 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 							continue
 						}
 					}
-					next(true)
+					next(false)
 				}
+				// Trim the AI comment
+				aIComment := strings.TrimSpace(prompt[start:i])
+				result.WriteString(aIComment)
 				// Check if it's a comment
 				if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
 					// Skip the comment
