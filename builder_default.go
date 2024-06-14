@@ -370,7 +370,9 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 			// AI Comments
 			if prompt[i] == '#' {
 				next(true)
-				for prompt[i] != '\n' {
+				// Continue until new line or comment
+				for prompt[i] != '\n' &&
+					!(prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/') {
 					// Annotations
 					if prompt[i] == '@' {
 						next(true)
@@ -394,6 +396,14 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 						}
 					}
 					next(true)
+				}
+				// Check if it's a comment
+				if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
+					// Skip the comment
+					for prompt[i] != '\n' {
+						next(false)
+					}
+					continue
 				}
 				next(true)
 				continue
