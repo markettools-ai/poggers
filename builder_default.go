@@ -80,10 +80,10 @@ func (pB *promptBuilder) ProcessBatchFromDir(directory string) error {
 		if file.IsDir() {
 			continue
 		}
-		prefix, err := strconv.Atoi(strings.Split(file.Name(), "_")[0])
-		if err != nil {
-			continue
-		}
+		// Parse the prefix
+		parts := strings.Split(file.Name(), "_")
+		prefix, _ := strconv.Atoi(parts[0])
+		// Read the file
 		text, err := readFile(directory + "/" + file.Name())
 		if err != nil {
 			return fmt.Errorf("error reading file: %w", err)
