@@ -11,11 +11,13 @@ type Prompt struct {
 }
 
 type PromptBuilder interface {
+	Process(url string) error
+
 	ProcessBatchFromDir(directory string) error
 	ProcessBatch(batch [][]Prompt) error
 
 	ProcessFromFile(filename string) ([]Message, error)
-	Process(name, prompt string) ([]Message, error)
+	ProcessRaw(name, prompt string) ([]Message, error)
 
 	SetAnnotation(id string, value interface{})
 }

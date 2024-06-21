@@ -68,6 +68,34 @@ func readFile(filename string) (string, error) {
 	return fullText, nil
 }
 
+func (pB *promptBuilder) Process(filename string) error {
+	// Check if file exists
+	short := strings.TrimSuffix(filename, ".prompt")
+	long := short + ".prompt"
+	if _, err := os.Stat(long); err == nil {
+		// Read the file
+		text, err := readFile(long)
+		if err != nil {
+			return fmt.Errorf("error reading file: %w", err)
+		}
+		// Process the file
+		_, err = pB.ProcessRaw(short, text)
+		if err != nil {
+			return fmt.Errorf("error processing file: %w", err)
+		}
+		return nil
+	} else if os.IsNotExist(err) {
+		// Check if the file is a directory
+		if _, err := os.Stat(short); err != nil {
+			return fmt.Errorf("file or directory does not exist: %w", err)
+		}
+		// Process the directory
+		return pB.ProcessBatchFromDir(short)
+	} else {
+		return fmt.Errorf("error checking file: %w", err)
+	}
+}
+
 func (pB *promptBuilder) ProcessBatchFromDir(directory string) error {
 	// Files are grouped by prefix
 	files, err := os.ReadDir(directory)
@@ -111,7 +139,7 @@ func (pB *promptBuilder) ProcessBatch(batch [][]Prompt) error {
 				// Remove the .prompt suffix
 				prompts[i].Name = strings.TrimSuffix(prompts[i].Name, ".prompt")
 				// Process the prompt
-				_, err := pB.Process(prompts[i].Name, prompts[i].Text)
+				_, err := pB.ProcessRaw(prompts[i].Name, prompts[i].Text)
 				if err != nil {
 					errChan <- fmt.Errorf("error processing prompt: %w", err)
 					return
@@ -137,7 +165,7 @@ func (pB *promptBuilder) ProcessFromFile(filename string) ([]Message, error) {
 	pathParts := strings.Split(filename, "/")
 	name := strings.TrimSuffix(pathParts[len(pathParts)-1], ".prompt")
 	// Process the file contents
-	messages, err := pB.Process(name, text)
+	messages, err := pB.ProcessRaw(name, text)
 	if err != nil {
 		return []Message{}, fmt.Errorf("error processing file: %w", err)
 	}
@@ -440,7 +468,7 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 	return messages, constants, nil
 }
 
-func (pB *promptBuilder) Process(name, prompt string) ([]Message, error) {
+func (pB *promptBuilder) ProcessRaw(name, prompt string) ([]Message, error) {
 	// Process the prompt
 	results, constants, err := processPrompt(prompt)
 	if err != nil {
