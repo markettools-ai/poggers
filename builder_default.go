@@ -86,8 +86,10 @@ func (pB *promptBuilder) Process(filename string) error {
 		return nil
 	} else if os.IsNotExist(err) {
 		// Check if the file is a directory
-		if _, err := os.Stat(short); err != nil {
+		if stat, err := os.Stat(short); err != nil {
 			return fmt.Errorf("file or directory does not exist: %w", err)
+		} else if !stat.IsDir() {
+			return fmt.Errorf("file is not a directory: %w", err)
 		}
 		// Process the directory
 		return pB.ProcessBatchFromDir(short)
@@ -477,7 +479,8 @@ func (pB *promptBuilder) ProcessRaw(name, prompt string) ([]Message, error) {
 
 	// Remove the prefix from the prompt name
 	index := 0
-	if parts := strings.Split(name, "_"); len(parts) > 1 {
+	path := strings.Split(name, "/")
+	if parts := strings.Split(path[len(path)-1], "_"); len(parts) > 1 {
 		name = parts[1]
 		index, _ = strconv.Atoi(parts[0])
 	} else {
