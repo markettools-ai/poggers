@@ -14,14 +14,14 @@ import (
 type promptBuilder struct {
 	annotations       map[string]string
 	annotationsMutexn sync.RWMutex
-	onBeforeProcess   func(name string, index int, constants map[string]string) (bool, error)
-	onAfterProcess    func(name string, index int, constants map[string]string, messages []Message) error
+	onBeforeProcess   func(name string, index int, params map[string]string) (bool, error)
+	onAfterProcess    func(name string, index int, params map[string]string, messages []Message) error
 }
 
 type PromptBuilderOptions struct {
 	Annotations     map[string]string
-	OnBeforeProcess func(name string, index int, constants map[string]string) (skip bool, err error)
-	OnAfterProcess  func(name string, index int, constants map[string]string, messages []Message) error
+	OnBeforeProcess func(name string, index int, params map[string]string) (skip bool, err error)
+	OnAfterProcess  func(name string, index int, params map[string]string, messages []Message) error
 }
 
 func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
@@ -31,8 +31,8 @@ func NewPromptBuilder(options ...PromptBuilderOptions) PromptBuilder {
 		"JSONOutput":   JSONOutput,
 		"LockedInput":  LockedInput,
 	}
-	var onBeforeProcess func(name string, index int, constants map[string]string) (bool, error)
-	var onAfterProcess func(name string, index int, constants map[string]string, messages []Message) error
+	var onBeforeProcess func(name string, index int, params map[string]string) (bool, error)
+	var onAfterProcess func(name string, index int, params map[string]string, messages []Message) error
 	// Override options
 	if len(options) > 0 {
 		if options[0].Annotations != nil {
@@ -186,7 +186,7 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 	prompt = "\n" + prompt + "\n"
 	var result strings.Builder
 	messages := []Message{}
-	constants := map[string]string{}
+	params := map[string]string{}
 	var stack int
 	var label string
 	var isTabulated bool
@@ -238,7 +238,7 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 				}
 				// Check for label
 				if label == "" {
-					return []Message{}, constants, fmt.Errorf("found tabulated text without a label")
+					return []Message{}, params, fmt.Errorf("found tabulated text without a label")
 				}
 			}
 			continue
@@ -285,7 +285,7 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 					if prompt[i] == '\n' {
 						continue
 					} else {
-						return []Message{}, constants, fmt.Errorf("expected new line, found %q", prompt[i])
+						return []Message{}, params, fmt.Errorf("expected new line, found %q", prompt[i])
 					}
 				}
 				constant := prompt[start:i]
@@ -313,7 +313,7 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 						}
 						next(false)
 					}
-					constants[constant] = prompt[valueStart : i-1]
+					params[constant] = prompt[valueStart : i-1]
 					// Comment
 					if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
 						// Skip the comment
@@ -324,10 +324,10 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 					}
 					continue
 				} else {
-					return []Message{}, constants, fmt.Errorf("expected colon or equals sign, found %q", prompt[i])
+					return []Message{}, params, fmt.Errorf("expected colon or equals sign, found %q", prompt[i])
 				}
 			} else {
-				return []Message{}, constants, fmt.Errorf("expected label or constant, found nothing")
+				return []Message{}, params, fmt.Errorf("expected label or constant, found nothing")
 			}
 		}
 		// Annotations
@@ -467,12 +467,12 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 		messages = append(messages, Message{Role: label, Content: result.String()})
 	}
 
-	return messages, constants, nil
+	return messages, params, nil
 }
 
 func (pB *promptBuilder) ProcessRaw(name, prompt string) ([]Message, error) {
 	// Process the prompt
-	results, constants, err := processPrompt(prompt)
+	results, params, err := processPrompt(prompt)
 	if err != nil {
 		return []Message{}, fmt.Errorf("error processing prompt: %w", err)
 	}
@@ -489,7 +489,7 @@ func (pB *promptBuilder) ProcessRaw(name, prompt string) ([]Message, error) {
 
 	// Call onBeforeProcess callback
 	if pB.onBeforeProcess != nil {
-		skip, err := pB.onBeforeProcess(name, index, constants)
+		skip, err := pB.onBeforeProcess(name, index, params)
 		if err != nil {
 			return []Message{}, fmt.Errorf("error before processing: %w", err)
 		}
@@ -508,7 +508,7 @@ func (pB *promptBuilder) ProcessRaw(name, prompt string) ([]Message, error) {
 
 	// Call onAfterProcess callback
 	if pB.onAfterProcess != nil {
-		err := pB.onAfterProcess(name, index, constants, results)
+		err := pB.onAfterProcess(name, index, params, results)
 		if err != nil {
 			return []Message{}, fmt.Errorf("error after processing: %w", err)
 		}
