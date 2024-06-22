@@ -499,7 +499,7 @@ func (pB *promptBuilder) ProcessRaw(name, prompt string) ([]Message, error) {
 	}
 
 	// Replace annotations
-	annotations := regexp.MustCompile(`@[A-Za-z0-9_-]+\n`)
+	annotations := regexp.MustCompile(`@[A-Za-z0-9_-]+`)
 	for i, message := range results {
 		results[i].Content = annotations.ReplaceAllStringFunc(message.Content, func(annotation string) string {
 			return pB.getAnnotation(strings.TrimSpace(annotation)[1:])
