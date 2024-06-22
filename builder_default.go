@@ -505,6 +505,11 @@ func (pB *promptBuilder) ProcessRaw(name, prompt string) ([]Message, error) {
 			return pB.getAnnotation(strings.TrimSpace(annotation)[1:])
 		})
 	}
+	for k, v := range params {
+		params[k] = annotations.ReplaceAllStringFunc(v, func(annotation string) string {
+			return pB.getAnnotation(strings.TrimSpace(annotation)[1:])
+		})
+	}
 
 	// Call onAfterProcess callback
 	if pB.onAfterProcess != nil {
