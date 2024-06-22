@@ -313,7 +313,7 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 						}
 						next(false)
 					}
-					params[constant] = strings.Trim(prompt[valueStart:i])
+					params[constant] = strings.TrimSpace(prompt[valueStart:i])
 					// Comment
 					if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
 						// Skip the comment
