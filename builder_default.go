@@ -243,7 +243,7 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 			}
 			continue
 		}
-		// Labels or Constants
+		// Labels or Params
 		if !isTabulated {
 			// Reset label
 			if label != "" {
@@ -313,7 +313,7 @@ func processPrompt(prompt string) ([]Message, map[string]string, error) {
 						}
 						next(false)
 					}
-					params[constant] = prompt[valueStart : i-1]
+					params[constant] = prompt[valueStart:i]
 					// Comment
 					if prompt[i] == '/' && i+1 < len(prompt) && prompt[i+1] == '/' {
 						// Skip the comment
