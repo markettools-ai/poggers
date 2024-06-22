@@ -529,10 +529,19 @@ func (pB *promptBuilder) SetAnnotation(id string, value interface{}) {
 		pB.annotationsMutexn.Unlock()
 		return
 	}
-	valueJSON, err := json.Marshal(value)
-	if err != nil {
-		pB.annotations[id] = fmt.Sprintf("%v", value)
-	} else {
-		pB.annotations[id] = string(valueJSON)
+	switch value := value.(type) {
+	case string:
+		pB.annotationsMutexn.Lock()
+		pB.annotations[id] = value
+		pB.annotationsMutexn.Unlock()
+		return
+	default:
+		valueJSON, err := json.Marshal(value)
+		if err != nil {
+			pB.annotations[id] = fmt.Sprintf("%v", value)
+		} else {
+			pB.annotations[id] = string(valueJSON)
+		}
 	}
+
 }
